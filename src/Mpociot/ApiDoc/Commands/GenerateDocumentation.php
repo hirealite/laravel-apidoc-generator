@@ -29,6 +29,7 @@ class GenerateDocumentation extends Command
                             {--noPostmanCollection : Disable Postman collection creation}
                             {--useMiddlewares : Use all configured route middlewares}
                             {--actAsUserId= : The user ID to use for API response calls}
+                            {--actAsUserGuard= : The guard to use when authenticating the user}
                             {--router=laravel : The router to be used (Laravel or Dingo)}
                             {--force : Force rewriting of existing routes}
                             {--bindings= : Route Model Bindings}
