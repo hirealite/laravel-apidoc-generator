@@ -69,7 +69,7 @@ class GenerateDocumentation extends Command
         $routePrefix = $this->option('routePrefix');
         $middleware = $this->option('middleware');
 
-        $this->setUserToBeImpersonated($this->option('actAsUserId'));
+        $this->setUserToBeImpersonated($this->option('actAsUserId'), $this->option('actAsUserGuard'));
 
         if ($routePrefix === null && ! count($allowedRoutes) && $middleware === null) {
             $this->error('You must provide either a route prefix or a route or a middleware to generate the documentation.');
@@ -214,8 +214,9 @@ class GenerateDocumentation extends Command
 
     /**
      * @param $actAs
+     * @param $guard
      */
-    private function setUserToBeImpersonated($actAs)
+    private function setUserToBeImpersonated($actAs, $guard = null)
     {
         if (! empty($actAs)) {
             if (version_compare($this->laravel->version(), '5.2.0', '<')) {
@@ -225,7 +226,12 @@ class GenerateDocumentation extends Command
             } else {
                 $userModel = config('auth.providers.users.model');
                 $user = $userModel::find((int) $actAs);
-                $this->laravel['auth']->guard()->setUser($user);
+
+                if(! $guard) {
+                    $guard = config('auth.defaults.guard', 'web');
+                }
+
+                $this->laravel['auth']->guard($guard)->setUser($user);
             }
         }
     }
