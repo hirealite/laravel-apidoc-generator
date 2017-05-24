@@ -265,10 +265,19 @@ class GenerateDocumentation extends Command
      */
     private function getRoutes()
     {
-        if ($this->option('router') === 'laravel') {
-            return Route::getRoutes();
-        } else {
-            return app('Dingo\Api\Routing\Router')->getRoutes()[$this->option('routePrefix')];
+        switch($this->option('router')) {
+            case 'laravel':
+            case 'passport':
+                return Route::getRoutes();
+                break;
+
+            case 'dingo':
+                return app('Dingo\Api\Routing\Router')->getRoutes()[$this->option('routePrefix')];
+                break;
+
+            default:
+                $this->error('Unknown router.');
+                return null;
         }
     }
 
