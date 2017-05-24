@@ -10,6 +10,7 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class LaravelGenerator extends AbstractGenerator
 {
+
     /**
      * @param Route $route
      *
@@ -40,9 +41,9 @@ class LaravelGenerator extends AbstractGenerator
 
     /**
      * @param  \Illuminate\Routing\Route $route
-     * @param array $bindings
-     * @param array $headers
-     * @param bool $withResponse
+     * @param array                      $bindings
+     * @param array                      $headers
+     * @param bool                       $withResponse
      *
      * @return array
      */
@@ -50,8 +51,8 @@ class LaravelGenerator extends AbstractGenerator
     {
         $content = '';
 
-        $routeAction = $route->getAction();
-        $routeGroup = $this->getRouteGroup($routeAction['uses']);
+        $routeAction      = $route->getAction();
+        $routeGroup       = $this->getRouteGroup($routeAction['uses']);
         $routeDescription = $this->getRouteDescription($routeAction['uses']);
 
         if ($withResponse) {
@@ -64,14 +65,14 @@ class LaravelGenerator extends AbstractGenerator
         }
 
         return $this->getParameters([
-            'id' => md5($this->getUri($route).':'.implode($this->getMethods($route))),
-            'resource' => $routeGroup,
-            'title' => $routeDescription['short'],
+            'id'          => md5($this->getUri($route) . ':' . implode($this->getMethods($route))),
+            'resource'    => $routeGroup,
+            'title'       => $routeDescription['short'],
             'description' => $routeDescription['long'],
-            'methods' => $this->getMethods($route),
-            'uri' => $this->getUri($route),
-            'parameters' => [],
-            'response' => $content,
+            'methods'     => $this->getMethods($route),
+            'uri'         => $this->getUri($route),
+            'parameters'  => [],
+            'response'    => $content,
         ], $routeAction, $bindings);
     }
 
@@ -90,34 +91,38 @@ class LaravelGenerator extends AbstractGenerator
     /**
      * Call the given URI and return the Response.
      *
-     * @param  string  $method
-     * @param  string  $uri
+     * @param  string $method
+     * @param  string $uri
      * @param  array  $parameters
      * @param  array  $cookies
      * @param  array  $files
      * @param  array  $server
-     * @param  string  $content
+     * @param  string $content
      *
      * @return \Illuminate\Http\Response
      */
-    public function callRoute($method, $uri, $parameters = [], $cookies = [], $files = [], $server = [], $content = null)
-    {
-        $server = collect([
-            'CONTENT_TYPE' => 'application/json',
-            'Accept' => 'application/json',
-        ])->merge($server)->toArray();
+    public function callRoute(
+        $method,
+        $uri,
+        $parameters = [],
+        $cookies = [],
+        $files = [],
+        $server = [],
+        $content = null
+    ) {
+        $server = collect($this->getHeaders())->merge($server)->toArray();
 
         $request = Request::create(
             $uri, $method, $parameters,
             $cookies, $files, $this->transformHeadersToServerVars($server), $content
         );
 
-        $kernel = App::make('Illuminate\Contracts\Http\Kernel');
+        $kernel   = App::make('Illuminate\Contracts\Http\Kernel');
         $response = $kernel->handle($request);
 
         $kernel->terminate($request, $response);
 
-        if (file_exists($file = App::bootstrapPath().'/app.php')) {
+        if (file_exists($file = App::bootstrapPath() . '/app.php')) {
             $app = require $file;
             $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
         }
@@ -126,20 +131,33 @@ class LaravelGenerator extends AbstractGenerator
     }
 
     /**
+     * Gets the headers to be attached to every request.
+     *
+     * @return array
+     */
+    protected function getHeaders()
+    {
+        return [
+            'CONTENT_TYPE' => 'application/json',
+            'Accept'       => 'application/json',
+        ];
+    }
+
+    /**
      * @param  string $route
-     * @param  array $bindings
+     * @param  array  $bindings
      *
      * @return array
      */
     protected function getRouteRules($route, $bindings)
     {
         list($class, $method) = explode('@', $route);
-        $reflection = new ReflectionClass($class);
+        $reflection       = new ReflectionClass($class);
         $reflectionMethod = $reflection->getMethod($method);
 
         foreach ($reflectionMethod->getParameters() as $parameter) {
             $parameterType = $parameter->getClass();
-            if (! is_null($parameterType) && class_exists($parameterType->name)) {
+            if (!is_null($parameterType) && class_exists($parameterType->name)) {
                 $className = $parameterType->name;
 
                 if (is_subclass_of($className, FormRequest::class)) {

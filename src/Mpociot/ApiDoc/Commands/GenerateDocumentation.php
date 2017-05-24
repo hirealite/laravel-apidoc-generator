@@ -2,6 +2,7 @@
 
 namespace Mpociot\ApiDoc\Commands;
 
+use Mpociot\ApiDoc\Generators\PassportGenerator;
 use ReflectionClass;
 use Illuminate\Console\Command;
 use Mpociot\Reflection\DocBlock;
@@ -59,17 +60,30 @@ class GenerateDocumentation extends Command
      */
     public function handle()
     {
-        if ($this->option('router') === 'laravel') {
-            $generator = new LaravelGenerator();
-        } else {
-            $generator = new DingoGenerator();
+        $user = $this->setUserToBeImpersonated($this->option('actAsUserId'));
+
+        switch($this->option('router')) {
+            case 'laravel':
+                $generator = new LaravelGenerator();
+                break;
+
+            case 'passport':
+                $generator = new PassportGenerator($user);
+                break;
+
+            case 'dingo':
+                $generator = new DingoGenerator();
+                break;
+
+            default:
+                $this->error('Unknown router.');
+                return false;
         }
 
         $allowedRoutes = $this->option('routes');
         $routePrefix = $this->option('routePrefix');
         $middleware = $this->option('middleware');
 
-        $this->setUserToBeImpersonated($this->option('actAsUserId'));
 
         if ($routePrefix === null && ! count($allowedRoutes) && $middleware === null) {
             $this->error('You must provide either a route prefix or a route or a middleware to generate the documentation.');
@@ -79,11 +93,21 @@ class GenerateDocumentation extends Command
 
         $generator->prepareMiddleware($this->option('useMiddlewares'));
 
-        if ($this->option('router') === 'laravel') {
-            $parsedRoutes = $this->processLaravelRoutes($generator, $allowedRoutes, $routePrefix, $middleware);
-        } else {
-            $parsedRoutes = $this->processDingoRoutes($generator, $allowedRoutes, $routePrefix, $middleware);
+        switch($this->option('router')) {
+            case 'laravel':
+            case 'passport':
+                $parsedRoutes = $this->processLaravelRoutes($generator, $allowedRoutes, $routePrefix, $middleware);
+                break;
+
+            case 'dingo':
+                $parsedRoutes = $this->processDingoRoutes($generator, $allowedRoutes, $routePrefix, $middleware);
+                break;
+
+            default:
+                $this->error('Unknown router.');
+                return false;
         }
+
         $parsedRoutes = collect($parsedRoutes)->groupBy('resource')->sort(function ($a, $b) {
             return strcmp($a->first()['resource'], $b->first()['resource']);
         });
@@ -214,20 +238,26 @@ class GenerateDocumentation extends Command
 
     /**
      * @param $actAs
+     *
+     * @return null
      */
     private function setUserToBeImpersonated($actAs)
     {
-        if (! empty($actAs)) {
-            if (version_compare($this->laravel->version(), '5.2.0', '<')) {
-                $userModel = config('auth.model');
-                $user = $userModel::find((int) $actAs);
-                $this->laravel['auth']->setUser($user);
-            } else {
-                $userModel = config('auth.providers.users.model');
-                $user = $userModel::find((int) $actAs);
-                $this->laravel['auth']->guard()->setUser($user);
-            }
+        if (empty($actAs)) {
+            return null;
         }
+
+        if (version_compare($this->laravel->version(), '5.2.0', '<')) {
+            $userModel = config('auth.model');
+            $user = $userModel::find((int) $actAs);
+            $this->laravel['auth']->setUser($user);
+        } else {
+            $userModel = config('auth.providers.users.model');
+            $user = $userModel::find((int) $actAs);
+            $this->laravel['auth']->guard()->setUser($user);
+        }
+
+        return $user;
     }
 
     /**
